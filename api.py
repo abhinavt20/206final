@@ -7,16 +7,8 @@ import unittest
 import os
 import csv
 import matplotlib.pyplot as plt
-# from matplotlib.ticker import FixedLocator, FormatStrFormatter
 import numpy as np
-
-
-def setUpDatabase(db_name):
-    path = os.path.dirname(os.path.abspath(__file__))
-    conn = sqlite3.connect(path+'/'+db_name)
-    cur = conn.cursor()
-    return cur, conn
-
+from sklearn.linear_model import LinearRegression
 
 list1 = ["Asia", "North America", "Africa", "Europe", "South America","Oceania"]
 list2 = [1, 2, 3, 4, 5, 6]
@@ -27,6 +19,23 @@ list6 = []
 list7 = []
 list8 = []
 
+dict_continent_id = {}
+dict_country_id = {}
+
+
+
+# Sets up database path 
+# Input: Takes a Database Name as Input 
+# Output: returns cur, conn
+def setUpDatabase(db_name):
+    path = os.path.dirname(os.path.abspath(__file__))
+    conn = sqlite3.connect(path+'/'+db_name)
+    cur = conn.cursor()
+    return cur, conn
+
+# Reads in data from the Air Quality Index API into two lists   
+# Input: cur, conn 
+# Output: Inserts AQI data and Country Index but does not return anything  
 def create_aqi_table(cur, conn):
 
     for country in dict_country_id.keys():
@@ -47,28 +56,13 @@ def create_aqi_table(cur, conn):
                 else:
                     air_quality_index = location_info['data']['iaqi']["pm25"]["v"]
 
-
-            # get pm25
-            # if "o3" not in location_info['data']['iaqi']:
-            #     continue
-
-            # pm_25_value = location_info['data']['iaqi']["o3"]["v"]
-
-            # make country name lower case 
-
-            # insert data into the Tracks table
-
             location_name = country.lower()
-        #     cur.execute('INSERT INTO AirQualityTable (Country_ID, AirQualityIndex) VALUES (?, ?)',
-        #         (dict_return[location_name], air_quality_index))
             list7.append(dict_country_id[location_name])
             list8.append(air_quality_index)
-        #         # commit the changes
-    
-        # conn.commit()
 
-
-dict_continent_id = {}
+# Creates dictionary for the country ID table    
+# Input: cur, conn 
+# Output: none 
 def create_continent_table(cur, conn):
 
     dict_continent_id["Asia"] = 1
@@ -77,17 +71,11 @@ def create_continent_table(cur, conn):
     dict_continent_id["Europe"] = 4
     dict_continent_id["South America"] = 5
     dict_continent_id["Oceania"] = 6
-    
-    # for continent in dict_continent_id.keys():
-    #     cur.execute('INSERT INTO ContinentIDTable (Continent_ID, Continent) VALUES (?, ?)',
-    #             (dict_continent_id[continent], continent))
-    # conn.commit()
 
-dict_country_id = {}
+# Reads in data from the Mortality Rate website into three lists for MortalityRateTable 
+# Input: cur, conn 
+# Output: None 
 def create_country_and_mortality_table(cur, conn):
-# https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude={part}&appid={API key}
-    # https://worldpopulationreview.com/country-rankings/death-rate-by-country
-
     url = "https://statisticstimes.com/demographics/countries-by-death-rate.php"
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'html.parser')
@@ -127,30 +115,19 @@ def create_country_and_mortality_table(cur, conn):
 
         continent_name = (tag3[6].text).strip()
 
-        # insert and ignore 
-
         list3.append(count)
         list4.append(country_name_lower)
         list5.append(dict_continent_id[continent_name])
 
-        # cur.execute('INSERT INTO CountryIDTable (Country_ID, Country, Continent_ID) VALUES (?, ?, ?)',
-        #     (count, country_name_lower, dict_continent_id[continent_name]))
-
-        # index into second td and get country name
         mortality_rate = (tag3[4].text).strip()
 
-        # cur.execute('INSERT INTO MortalityRateTable (Country_ID, MortalityRate) VALUES (?, ?)',
-        #     (count, mortality_rate))
         list6.append(mortality_rate)
 
         count = count + 1
 
-    # conn.commit()
-
-# loop through each min(25, size of database left)
-# only update count if the item is unique 
-
-
+# Adds all or 25 values into the AirQualityTable    
+# Input: cur, conn and bool value for wheather to add all the data to the database or 25 lines
+# Output: none 
 def add_to_table(printAll, cur, conn):
     cur.execute('SELECT count(Country_ID) FROM AirQualityTable')
     count = cur.fetchone()
@@ -174,7 +151,9 @@ def add_to_table(printAll, cur, conn):
                 (list7[i], list8[i]))
     conn.commit()
 
-
+# Adds all or 25 values into the MortalityRateTable    
+# Input: cur, conn and bool value for wheather to add all the data to the database or 25 lines
+# Output: none 
 def add_to_table1(printAll, cur, conn):
     cur.execute('SELECT count(Country_ID) FROM MortalityRateTable')
     count = cur.fetchone()
@@ -197,7 +176,9 @@ def add_to_table1(printAll, cur, conn):
             (list3[i], list6[i]))
     conn.commit()
 
-
+# Adds all or 25 values into the CountryIDTable    
+# Input: cur, conn and bool value for wheather to add all the data to the database or 25 lines
+# Output: none 
 def add_to_table2(printAll, cur, conn):
     cur.execute('SELECT count(Country_ID) FROM CountryIDTable')
     count = cur.fetchone()
@@ -220,7 +201,9 @@ def add_to_table2(printAll, cur, conn):
             (list3[i], list4[i], list5[i]))
     conn.commit()
 
-
+# Adds all or 25 values into the ContinentIDTable    
+# Input: cur, conn and bool value for wheather to add all the data to the database or 25 lines
+# Output: none 
 def add_to_table3(printAll, cur, conn):
     cur.execute('SELECT count(Continent_ID) FROM ContinentIDTable')
     count = cur.fetchone()
@@ -246,8 +229,10 @@ def add_to_table3(printAll, cur, conn):
             (list2[i], list1[i]))
     conn.commit()
 
+# Joins the data from the 4 different tables in the database     
+# Input: cur, conn
+# Output: returns the joined data  
 def join_tables(cur, conn):
-    # CountryIDTable.Country ContinentIDTable.Continent MortalityRateTable.MortalityRate AirQualityTable.AirQualityIndex
     cur.execute('''SELECT CountryIDTable.Country, ContinentIDTable.Continent, MortalityRateTable.MortalityRate, AirQualityTable.AirQualityIndex
     FROM AirQualityTable  
     JOIN CountryIDTable ON CountryIDTable.Country_ID = AirQualityTable.Country_ID 
@@ -255,13 +240,12 @@ def join_tables(cur, conn):
     JOIN MortalityRateTable ON AirQualityTable.Country_ID = MortalityRateTable.Country_ID
     ''')
 
-    # cur.execute("SELECT CountryIDTable.Country ContinentIDTable.Continent MortalityRateTable.MortalityRate AirQualityTable.AirQualityIndex FROM AirQualityTable INNER JOIN MortalityRateTable ON AirQualityTable.Country_ID = MortalityRateTable.Country_ID INNER JOIN CountryIDTable ON CountryIDTable.Country_ID = AirQualityTable.Country_ID INNER JOIN ContinentIDTable ON CountryIDTable.Continent_ID = ContinentIDTable.Continent_ID")
-    # cur.execute('''SELECT CountryIDTable.Country ContinentIDTable.Continent MortalityRateTable.MortalityRate AirQualityTable.AirQualityIndex FROM AirQualityTable INNER JOIN MortalityRateTable ON AirQualityTable.Country_ID = MortalityRateTable.Country_ID INNER JOIN CountryIDTable ON CountryIDTable.Country_ID = AirQualityTable.Country_ID INNER JOIN ContinentIDTable ON CountryIDTable.Continent_ID = ContinentIDTable.Continent_ID''')
-    # cur.execute("SELECT CountryIDTable.Country ContinentIDTable.Continent MortalityRateTable.MortalityRate AirQualityTable.AirQualityIndex FROM covid_deaths INNER JOIN rainfall ON covid_deaths.country=rainfall.country_a INNER JOIN covid_confirmed ON covid_deaths.country=covid_confirmed.country_b")
     joined_data = cur.fetchall()
-    # print(joined_data)
     return joined_data
 
+# creates the two csv data files and the three visuals      
+# Input: takes in the joined data from def join_tables(cur, conn)
+# Output: none 
 def calculate_and_csv(joined_data):
     avg_mortality_rate_by_continent_list = []
     avg_aqi_rate_by_continent_list = []
@@ -277,7 +261,7 @@ def calculate_and_csv(joined_data):
     
     list_of_present_continents = []
     for items in list1:
-        if items in avg_mortality_rate_by_continent:
+        if items in avg_mortality_rate_by_continent.keys():
             avg_mort_rate = avg_mortality_rate_by_continent[items] / continent_count[items]
             avg_mortality_rate_by_continent_list.append(avg_mort_rate)
             avg_aqi_rate = avg_aqi_rate_by_continent[items] / continent_count[items]
@@ -291,15 +275,11 @@ def calculate_and_csv(joined_data):
         inner = [list_of_present_continents[i], avg_mortality_rate_by_continent_list[i], avg_aqi_rate_by_continent_list[i]]
         outer.append(inner)
     with open('continent-mortality-aqi.csv', 'w') as f:
-      
-    # using csv.writer method from CSV package
         write = csv.writer(f)
-        
         write.writerow(header)
         write.writerows(outer)
 
-
-    X_axis = np.arange(6)
+    X_axis = np.arange(len(list_of_present_continents))
     
     plt.bar(X_axis - 0.2, avg_mortality_rate_by_continent_list, 0.4, label = 'Average Mortality Rate (%)' )
     plt.bar(X_axis + 0.2, avg_aqi_rate_by_continent_list, 0.4, label = 'Average Air Quality Index')
@@ -350,25 +330,17 @@ def calculate_and_csv(joined_data):
         outer.append(inner)
     with open('aqi-across-countries.csv', 'w') as f:
       
-    # using csv.writer method from CSV package
         write = csv.writer(f)
         
         write.writerow(header)
         write.writerows(outer)
 
-    
 
     X_axis = np.arange(6)
     
     plt.bar(X_axis, level_of_health_concern_list, 0.4, label = 'Number of Countries in Distinct AQI Levels' )
     
     plt.xticks(X_axis, level_of_health_concern_catergory_list, rotation = 45)
-    # plt.plot(range(100))
-
-    # plt.axes().xaxis.set_major_locator(FixedLocator(range(0, 100, 10)))
-    # plt.axes().xaxis.set_minor_locator(FixedLocator(range(5, 100, 10)))
-    # plt.axes().xaxis.set_minor_formatter(FormatStrFormatter("%d"))
-    # plt.axes().tick_params(which='major', pad=20, axis='x')
     plt.xlabel("Air Quality Index Levels")
     plt.ylabel("Number of Countries")
     plt.title("Number of Countries in Distinct Air Quality Index Levels")
@@ -377,10 +349,37 @@ def calculate_and_csv(joined_data):
     plt.close()
 
 
+    mortality_rate_list = []
+    aqi_list = []
+
+    for mortality_rate_vs_AQI in joined_data:
+        mortality_rate_list.append(mortality_rate_vs_AQI[2])
+        aqi_list.append(mortality_rate_vs_AQI[3])
+
+    y = np.array(mortality_rate_list)
+    x = np.array(aqi_list)
+
+    plt.plot(x, y, 'o')
+
+    m, b = np.polyfit(x, y, 1)
+
+    plt.plot(x, m*x+b, color='red')
+
+    plt.title('Air Quality Index vs Mortality Rate by Country')
+    plt.xlabel('Air Quality Index')
+    plt.ylabel('Mortality Rate (%)')
+
+    plt.savefig("mortality_vs_aqi.png")
+    plt.close()
+
+
+
 if os.path.exists("mortality-aqi-continent.png"):
     os.remove("mortality-aqi-continent.png")
 if os.path.exists("aqi-index-countries-count.png"):
     os.remove("aqi-index-countries-count.png")
+if os.path.exists("mortality_vs_aqi.png"):
+    os.remove("mortality_vs_aqi.png")
 
 def main():
 
@@ -417,8 +416,6 @@ def main():
 
     joined_data = join_tables(cur, conn)
     calculate_and_csv(joined_data)
-
-
 
 
 if __name__ == "__main__":
